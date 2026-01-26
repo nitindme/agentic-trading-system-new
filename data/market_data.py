@@ -6,11 +6,19 @@ Fetches real-time and historical stock data using yfinance and Alpha Vantage
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import yfinance as yf
-from alpha_vantage.timeseries import TimeSeries
-from alpha_vantage.fundamentaldata import FundamentalData
 import pandas as pd
 from pydantic import BaseModel
 import os
+
+# Optional imports - Alpha Vantage
+try:
+    from alpha_vantage.timeseries import TimeSeries
+    from alpha_vantage.fundamentaldata import FundamentalData
+    ALPHA_VANTAGE_AVAILABLE = True
+except ImportError:
+    ALPHA_VANTAGE_AVAILABLE = False
+    TimeSeries = None
+    FundamentalData = None
 
 
 class MarketData(BaseModel):
@@ -41,8 +49,10 @@ class MarketDataProvider:
             alpha_vantage_key: Optional Alpha Vantage API key
         """
         self.av_key = alpha_vantage_key or os.getenv("ALPHA_VANTAGE_API_KEY")
+        self.av_ts = None
+        self.av_fd = None
         
-        if self.av_key:
+        if self.av_key and ALPHA_VANTAGE_AVAILABLE:
             self.av_ts = TimeSeries(key=self.av_key, output_format='pandas')
             self.av_fd = FundamentalData(key=self.av_key, output_format='pandas')
     
