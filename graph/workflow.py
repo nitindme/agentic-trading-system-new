@@ -346,7 +346,16 @@ class TradingWorkflow:
                 "label": sentiment.label if sentiment else "N/A",
                 "confidence": sentiment.confidence if sentiment else 0.0,
                 "reasoning": sentiment.reasoning if sentiment else [],
-                "sources": sentiment.sources if sentiment else []
+                "sources": [
+                    {
+                        "name": s.get('publisher', s.get('name', 'Unknown')) if isinstance(s, dict) else str(s),
+                        "title": s.get('title', '') if isinstance(s, dict) else str(s),
+                        "url": s.get('link', s.get('url', '')) if isinstance(s, dict) else '',
+                        "sentiment": s.get('label', 'neutral') if isinstance(s, dict) else 'neutral',
+                        "score": s.get('score', 0) if isinstance(s, dict) else 0
+                    }
+                    for s in (sentiment.news_articles if sentiment and hasattr(sentiment, 'news_articles') and sentiment.news_articles else sentiment.sources if sentiment else [])
+                ] if sentiment else []
             } if sentiment else None,
             
             "technical": {

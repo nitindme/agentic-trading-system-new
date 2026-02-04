@@ -186,9 +186,50 @@ def render():
                     st.progress(confidence_sent, text=f"Confidence: {confidence_sent:.1%}")
                     
                     sources = sentiment.get('sources', [])
-                    st.markdown("**Data Sources:**")
+                    st.markdown(f"**News Sources ({len(sources)}):**")
+                    
+                    # Display sources with sentiment indicators and links
                     for source in sources[:5]:
-                        st.markdown(f"- {source}")
+                        if isinstance(source, dict):
+                            name = source.get('name', 'Unknown')
+                            url = source.get('url', '')
+                            sent = source.get('sentiment', 'neutral')
+                            
+                            # Sentiment emoji
+                            sent_emoji = {'positive': '🟢', 'negative': '🔴', 'neutral': '🟡'}.get(sent, '⚪')
+                            
+                            if url:
+                                st.markdown(f"{sent_emoji} [{name}]({url})")
+                            else:
+                                st.markdown(f"{sent_emoji} {name}")
+                        else:
+                            # Backward compatibility for string sources
+                            st.markdown(f"• {source}")
+                
+                st.markdown("---")
+                
+                # News Articles Section
+                st.markdown("### 📰 News Articles Analyzed")
+                
+                sources = sentiment.get('sources', [])
+                if sources and isinstance(sources[0], dict):
+                    for i, source in enumerate(sources[:8]):
+                        title = source.get('title', 'No title')
+                        url = source.get('url', '')
+                        name = source.get('name', 'Unknown')
+                        sent = source.get('sentiment', 'neutral')
+                        score = source.get('score', 0)
+                        
+                        # Sentiment color
+                        sent_emoji = {'positive': '🟢', 'negative': '🔴', 'neutral': '🟡'}.get(sent, '⚪')
+                        
+                        with st.expander(f"{sent_emoji} {title[:80]}{'...' if len(title) > 80 else ''}", expanded=False):
+                            st.markdown(f"**Source:** {name}")
+                            st.markdown(f"**Sentiment:** {sent.upper()} (score: {score:.2f})")
+                            if url:
+                                st.markdown(f"🔗 [Read full article]({url})")
+                            else:
+                                st.markdown("*Link not available*")
                 
                 st.markdown("---")
                 
@@ -198,7 +239,7 @@ def render():
                 # Display reasoning as bullet points if it's a list
                 if isinstance(reasoning, list):
                     for point in reasoning:
-                        st.markdown(f"- {point}")
+                        st.markdown(f"• {point}")
                 else:
                     st.info(reasoning)
         

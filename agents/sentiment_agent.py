@@ -18,7 +18,7 @@ class SentimentScore(BaseModel):
     confidence: float  # 0 to 1
     label: str  # "positive", "negative", "neutral"
     reasoning: List[str]
-    sources: List[str]
+    sources: List[Dict]  # List of {name, url, title, sentiment}
     timestamp: datetime
 
 
@@ -89,7 +89,8 @@ class NewsSentimentAgent:
             "score": score,
             "confidence": confidence,
             "label": label,
-            "text": text[:100]  # Store snippet
+            "text": text[:200],  # Store longer snippet for better context
+            "full_text": text  # Store full text for display
         }
     
     def analyze_news_batch(
@@ -125,7 +126,9 @@ class NewsSentimentAgent:
         
         for item in news_items:
             # Combine title and description for better context
-            text = f"{item.get('title', '')} {item.get('description', '')}"
+            title = item.get('title', '')
+            description = item.get('description', '')
+            text = f"{title} {description}"
             
             if not text.strip():
                 continue
@@ -147,8 +150,10 @@ class NewsSentimentAgent:
             
             weights.append(weight)
             
-            # Extract source name from various possible structures
+            # Extract source info with URL
             source_name = 'Unknown'
+            source_url = item.get('link', '') or item.get('url', '')
+            
             if 'publisher' in item:
                 source_name = item['publisher']
             elif 'source' in item:
@@ -157,16 +162,29 @@ class NewsSentimentAgent:
                     source_name = source.get('name', 'Unknown')
                 elif isinstance(source, str):
                     source_name = source
-            elif 'link' in item:
+            elif source_url:
                 # Extract domain from link as fallback
                 try:
                     from urllib.parse import urlparse
-                    domain = urlparse(item['link']).netloc
+                    domain = urlparse(source_url).netloc
                     source_name = domain.replace('www.', '')
                 except:
                     pass
             
-            sources.append(source_name)
+            # Determine sentiment label for this article
+            article_sentiment = "neutral"
+            if result['score'] > 0.15:
+                article_sentiment = "positive"
+            elif result['score'] < -0.15:
+                article_sentiment = "negative"
+            
+            sources.append({
+                'name': source_name,
+                'url': source_url,
+                'title': title[:150] if title else 'No title',
+                'sentiment': article_sentiment,
+                'score': result['score']
+            })
         
         if not sentiments:
             return SentimentScore(
@@ -199,19 +217,17 @@ class NewsSentimentAgent:
         # Generate reasoning
         reasoning = self._generate_reasoning(sentiments, avg_score)
         
-        # Ensure we have at least some sources
-        unique_sources = list(set(sources))
-        if not unique_sources:
-            unique_sources = ["Financial News Aggregator"]
+        # Sort sources by absolute score to get most impactful articles first
+        sorted_sources = sorted(sources, key=lambda x: abs(x.get('score', 0)), reverse=True)
         
-        print(f"Sentiment analysis complete: {len(unique_sources)} sources, confidence: {avg_confidence:.2%}")
+        print(f"Sentiment analysis complete: {len(sorted_sources)} sources, confidence: {avg_confidence:.2%}")
         
         return SentimentScore(
             score=float(avg_score),
             confidence=float(avg_confidence),
             label=label,
             reasoning=reasoning,
-            sources=unique_sources,
+            sources=sorted_sources[:10],  # Top 10 most impactful articles
             timestamp=datetime.now()
         )
     
@@ -245,15 +261,23 @@ class NewsSentimentAgent:
         else:
             reasoning.append("Neutral or mixed sentiment in news")
         
-        # Highlight key articles
+        # Highlight key articles with full text
         top_positive = max(sentiments, key=lambda x: x['score'], default=None)
         top_negative = min(sentiments, key=lambda x: x['score'], default=None)
         
         if top_positive and top_positive['score'] > 0.3:
-            reasoning.append(f"Key positive article: '{top_positive['text']}...'")
+            # Use full_text if available, otherwise use text
+            article_text = top_positive.get('full_text', top_positive.get('text', ''))[:250]
+            reasoning.append(f"📈 Most positive: \"{article_text}\"")
         
         if top_negative and top_negative['score'] < -0.3:
-            reasoning.append(f"Key negative article: '{top_negative['text']}...'")
+            article_text = top_negative.get('full_text', top_negative.get('text', ''))[:250]
+            reasoning.append(f"📉 Most negative: \"{article_text}\"")
+        
+        # Add confidence statement
+        high_conf = [s for s in sentiments if s['confidence'] > 0.9]
+        if high_conf:
+            reasoning.append(f"High confidence analysis on {len(high_conf)} of {len(sentiments)} articles")
         
         return reasoning
 
