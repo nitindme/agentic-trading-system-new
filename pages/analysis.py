@@ -141,216 +141,278 @@ def render():
         
         # SENTIMENT TAB
         with tab1:
-            sentiment = result.get('sentiment', {})
+            sentiment = result.get('sentiment') or {}
             
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("### Sentiment Score")
+            if not sentiment:
+                st.warning("⚠️ Sentiment analysis data not available")
+            else:
+                col1, col2 = st.columns(2)
                 
-                score = sentiment.get('score', 0)
-                label = sentiment.get('label', 'neutral')
-                
-                # Gauge chart
-                fig = go.Figure(go.Indicator(
-                    mode="gauge+number+delta",
-                    value=score,
-                    domain={'x': [0, 1], 'y': [0, 1]},
-                    title={'text': f"Sentiment: {label.upper()}"},
-                    delta={'reference': 0.5},
-                    gauge={
-                        'axis': {'range': [-1, 1]},
-                        'bar': {'color': "darkblue"},
-                        'steps': [
-                            {'range': [-1, -0.3], 'color': "lightcoral"},
-                            {'range': [-0.3, 0.3], 'color': "lightyellow"},
-                            {'range': [0.3, 1], 'color': "lightgreen"}
-                        ],
-                        'threshold': {
-                            'line': {'color': "red", 'width': 4},
-                            'thickness': 0.75,
-                            'value': 0.7
+                with col1:
+                    st.markdown("### Sentiment Score")
+                    
+                    score = sentiment.get('score', 0)
+                    label = sentiment.get('label', 'neutral')
+                    
+                    # Gauge chart
+                    fig = go.Figure(go.Indicator(
+                        mode="gauge+number+delta",
+                        value=score,
+                        domain={'x': [0, 1], 'y': [0, 1]},
+                        title={'text': f"Sentiment: {label.upper()}"},
+                        delta={'reference': 0.5},
+                        gauge={
+                            'axis': {'range': [-1, 1]},
+                            'bar': {'color': "darkblue"},
+                            'steps': [
+                                {'range': [-1, -0.3], 'color': "lightcoral"},
+                                {'range': [-0.3, 0.3], 'color': "lightyellow"},
+                                {'range': [0.3, 1], 'color': "lightgreen"}
+                            ],
+                            'threshold': {
+                                'line': {'color': "red", 'width': 4},
+                                'thickness': 0.75,
+                                'value': 0.7
+                            }
                         }
-                    }
-                ))
-                fig.update_layout(height=300)
-                st.plotly_chart(fig, use_container_width=True)
-            
-            with col2:
-                st.markdown("### Confidence & Sources")
+                    ))
+                    fig.update_layout(height=300)
+                    st.plotly_chart(fig, use_container_width=True)
                 
-                confidence_sent = sentiment.get('confidence', 0)
-                st.progress(confidence_sent, text=f"Confidence: {confidence_sent:.1%}")
+                with col2:
+                    st.markdown("### Confidence & Sources")
+                    
+                    confidence_sent = sentiment.get('confidence', 0)
+                    st.progress(confidence_sent, text=f"Confidence: {confidence_sent:.1%}")
+                    
+                    sources = sentiment.get('sources', [])
+                    st.markdown("**Data Sources:**")
+                    for source in sources[:5]:
+                        st.markdown(f"- {source}")
                 
-                sources = sentiment.get('sources', [])
-                st.markdown("**Data Sources:**")
-                for source in sources[:5]:
-                    st.markdown(f"- {source}")
-            
-            st.markdown("---")
-            
-            reasoning = sentiment.get('reasoning', 'No reasoning available')
-            st.markdown("### 📝 Analysis Reasoning")
-            st.info(reasoning)
+                st.markdown("---")
+                
+                reasoning = sentiment.get('reasoning', 'No reasoning available')
+                st.markdown("### 📝 Analysis Reasoning")
+                
+                # Display reasoning as bullet points if it's a list
+                if isinstance(reasoning, list):
+                    for point in reasoning:
+                        st.markdown(f"- {point}")
+                else:
+                    st.info(reasoning)
         
         # TECHNICAL TAB
         with tab2:
-            technical = result.get('technical', {})
+            technical = result.get('technical') or {}
             
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.markdown("### Trend")
-                trend = technical.get('trend', 'NEUTRAL')
-                strength = technical.get('strength', 0)
+            if not technical:
+                st.warning("⚠️ Technical analysis data not available")
+            else:
+                col1, col2, col3 = st.columns(3)
                 
-                trend_emoji = {
-                    "BULLISH": "🟢",
-                    "BEARISH": "🔴",
-                    "NEUTRAL": "🟡"
-                }
+                with col1:
+                    st.markdown("### Trend")
+                    trend = technical.get('overall_trend', 'NEUTRAL')
+                    strength = technical.get('trend_strength', 0)
+                    
+                    trend_emoji = {
+                        "BULLISH": "🟢",
+                        "BEARISH": "🔴",
+                        "NEUTRAL": "🟡"
+                    }
+                    
+                    st.markdown(f"## {trend_emoji.get(trend, '⚪')} {trend}")
+                    st.progress(strength, text=f"Strength: {strength:.1%}")
                 
-                st.markdown(f"## {trend_emoji.get(trend, '⚪')} {trend}")
-                st.progress(strength, text=f"Strength: {strength:.1%}")
-            
-            with col2:
-                st.markdown("### RSI")
-                rsi = technical.get('rsi', {}).get('value', 50)
-                rsi_signal = technical.get('rsi', {}).get('signal', 'neutral')
+                with col2:
+                    st.markdown("### RSI")
+                    rsi = technical.get('rsi', 50)
+                    rsi_signal = technical.get('rsi_signal', 'neutral')
+                    
+                    st.metric("RSI Value", f"{rsi:.1f}", rsi_signal.upper())
+                    
+                    if rsi > 70:
+                        st.warning("⚠️ Overbought")
+                    elif rsi < 30:
+                        st.success("✅ Oversold")
+                    else:
+                        st.info("📊 Neutral")
                 
-                st.metric("RSI Value", f"{rsi:.1f}", rsi_signal.upper())
+                with col3:
+                    st.markdown("### MACD")
+                    macd_value = technical.get('macd', 0)
+                    macd_signal_value = technical.get('macd_signal', 0)
+                    trend_macd = technical.get('macd_trend', 'neutral')
+                    
+                    st.metric("MACD", f"{macd_value:.2f}")
+                    st.metric("Signal", f"{macd_signal_value:.2f}")
+                    st.markdown(f"**Trend**: {trend_macd.upper()}")
                 
-                if rsi > 70:
-                    st.warning("⚠️ Overbought")
-                elif rsi < 30:
-                    st.success("✅ Oversold")
+                st.markdown("---")
+                
+                # Technical indicators details
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("### Moving Averages")
+                    
+                    sma_50 = technical.get('sma_50', 0)
+                    sma_200 = technical.get('sma_200', 0)
+                    signal_ma = technical.get('ma_signal', 'neutral')
+                    current_price = technical.get('price', 0)
+                    
+                    st.markdown(f"**SMA 50**: ${sma_50:.2f}")
+                    st.markdown(f"**SMA 200**: ${sma_200:.2f}")
+                    st.markdown(f"**Signal**: {signal_ma.upper()}")
+                    
+                    if sma_50 > sma_200:
+                        st.success("✅ Golden Cross (Bullish)")
+                    elif sma_50 < sma_200:
+                        st.warning("⚠️ Death Cross (Bearish)")
+                
+                with col2:
+                    st.markdown("### Volume & Bollinger")
+                    
+                    vol_trend = technical.get('volume_trend', 'stable')
+                    st.markdown(f"**Volume Trend**: {vol_trend.upper()}")
+                    
+                    volume = technical.get('volume', 0)
+                    volume_sma = technical.get('volume_sma_20', 0)
+                    if volume_sma > 0:
+                        vol_ratio = (volume / volume_sma - 1) * 100
+                        st.metric("Volume vs Avg", f"{vol_ratio:+.1f}%")
+                    
+                    bb_upper = technical.get('bb_upper', 0)
+                    bb_middle = technical.get('bb_middle', 0)
+                    bb_lower = technical.get('bb_lower', 0)
+                    bb_signal = technical.get('bb_signal', 'neutral')
+                    st.markdown(f"**Bollinger Signal**: {bb_signal.upper()}")
+                
+                st.markdown("---")
+                
+                reasoning_tech = technical.get('reasoning', 'No reasoning available')
+                st.markdown("### 📝 Technical Analysis")
+                
+                # Display reasoning as bullet points if it's a list
+                if isinstance(reasoning_tech, list):
+                    for point in reasoning_tech:
+                        st.markdown(f"- {point}")
                 else:
-                    st.info("📊 Neutral")
-            
-            with col3:
-                st.markdown("### MACD")
-                macd = technical.get('macd', {})
-                macd_signal = macd.get('signal', 'neutral')
-                trend_macd = macd.get('trend', 'neutral')
-                
-                st.metric("MACD Signal", macd_signal.upper())
-                st.markdown(f"**Trend**: {trend_macd}")
-            
-            st.markdown("---")
-            
-            # Technical indicators details
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("### Moving Averages")
-                ma = technical.get('moving_averages', {})
-                
-                sma_50 = ma.get('sma_50', 0)
-                sma_200 = ma.get('sma_200', 0)
-                signal_ma = ma.get('signal', 'neutral')
-                
-                st.markdown(f"**SMA 50**: ${sma_50:.2f}")
-                st.markdown(f"**SMA 200**: ${sma_200:.2f}")
-                st.markdown(f"**Signal**: {signal_ma.upper()}")
-                
-                if sma_50 > sma_200:
-                    st.success("✅ Golden Cross (Bullish)")
-                elif sma_50 < sma_200:
-                    st.warning("⚠️ Death Cross (Bearish)")
-            
-            with col2:
-                st.markdown("### Volume & Bollinger")
-                
-                volume = technical.get('volume', {})
-                vol_trend = volume.get('trend', 'stable')
-                st.markdown(f"**Volume Trend**: {vol_trend.upper()}")
-                
-                bb = technical.get('bollinger_bands', {})
-                bb_signal = bb.get('signal', 'neutral')
-                st.markdown(f"**Bollinger Signal**: {bb_signal.upper()}")
-            
-            st.markdown("---")
-            
-            reasoning_tech = technical.get('reasoning', 'No reasoning available')
-            st.markdown("### 📝 Technical Analysis")
-            st.info(reasoning_tech)
+                    st.info(reasoning_tech)
         
         # FUNDAMENTAL TAB
         with tab3:
-            fundamental = result.get('fundamental', {})
+            fundamental = result.get('fundamental') or {}
             
-            overall_score = fundamental.get('overall_score', 0)
-            overall_signal = fundamental.get('overall_signal', 'HOLD')
-            
-            # Overall score gauge
-            col1, col2 = st.columns([1, 1])
-            
-            with col1:
-                fig = go.Figure(go.Indicator(
-                    mode="gauge+number",
-                    value=overall_score * 100,
-                    domain={'x': [0, 1], 'y': [0, 1]},
-                    title={'text': "Fundamental Score"},
-                    gauge={
-                        'axis': {'range': [0, 100]},
-                        'bar': {'color': "darkblue"},
-                        'steps': [
-                            {'range': [0, 40], 'color': "lightcoral"},
-                            {'range': [40, 70], 'color': "lightyellow"},
-                            {'range': [70, 100], 'color': "lightgreen"}
-                        ]
+            if not fundamental:
+                st.warning("⚠️ Fundamental analysis data not available")
+            else:
+                overall_score = fundamental.get('overall_score', 0)
+                overall_signal = fundamental.get('overall_signal', 'HOLD')
+                
+                # Overall score gauge
+                col1, col2 = st.columns([1, 1])
+                
+                with col1:
+                    fig = go.Figure(go.Indicator(
+                        mode="gauge+number",
+                        value=overall_score * 100,
+                        domain={'x': [0, 1], 'y': [0, 1]},
+                        title={'text': "Fundamental Score"},
+                        gauge={
+                            'axis': {'range': [0, 100]},
+                            'bar': {'color': "darkblue"},
+                            'steps': [
+                                {'range': [0, 40], 'color': "lightcoral"},
+                                {'range': [40, 70], 'color': "lightyellow"},
+                                {'range': [70, 100], 'color': "lightgreen"}
+                            ]
+                        }
+                    ))
+                    fig.update_layout(height=300)
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                with col2:
+                    st.markdown("### Investment Signal")
+                    st.markdown(f"## {overall_signal}")
+                    
+                    signal_colors = {
+                        "STRONG_BUY": "success",
+                        "BUY": "info",
+                        "HOLD": "warning",
+                        "AVOID": "error"
                     }
-                ))
-                fig.update_layout(height=300)
-                st.plotly_chart(fig, use_container_width=True)
-            
-            with col2:
-                st.markdown("### Investment Signal")
-                st.markdown(f"## {overall_signal}")
-                
-                signal_colors = {
-                    "STRONG_BUY": "success",
-                    "BUY": "info",
-                    "HOLD": "warning",
-                    "AVOID": "error"
-                }
-                
-                color = signal_colors.get(overall_signal, "secondary")
-                st.markdown(f"**Recommendation**: :{color}[{overall_signal}]")
-            
-            st.markdown("---")
-            
-            # Category scores
-            st.markdown("### 📊 Category Breakdown")
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            categories = [
-                ('valuation', 'Valuation', col1),
-                ('growth', 'Growth', col2),
-                ('profitability', 'Profitability', col3),
-                ('financial_health', 'Financial Health', col4)
-            ]
-            
-            for key, label, col in categories:
-                with col:
-                    category_data = fundamental.get(key, {})
-                    score = category_data.get('score', 0)
                     
-                    st.markdown(f"**{label}**")
-                    st.progress(score, text=f"{score:.1%}")
+                    color = signal_colors.get(overall_signal, "secondary")
+                    st.markdown(f"**Recommendation**: :{color}[{overall_signal}]")
+                
+                st.markdown("---")
+                
+                # Category scores
+                st.markdown("### 📊 Category Breakdown")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                
+                # Valuation
+                with col1:
+                    st.markdown("**Valuation**")
+                    val_score = fundamental.get('valuation_score', 0)
+                    val_signal = fundamental.get('valuation_signal', 'FAIR')
+                    st.progress(val_score, text=f"{val_score:.1%}")
+                    st.markdown(f"*Signal*: {val_signal}")
                     
-                    # Show key metrics
-                    metrics = category_data.get('metrics', {})
-                    for metric_key, metric_value in list(metrics.items())[:2]:
-                        if isinstance(metric_value, (int, float)):
-                            st.markdown(f"*{metric_key}*: {metric_value:.2f}")
-            
-            st.markdown("---")
-            
-            reasoning_fund = fundamental.get('reasoning', 'No reasoning available')
-            st.markdown("### 📝 Fundamental Analysis")
-            st.info(reasoning_fund)
+                    pe = fundamental.get('pe_ratio')
+                    if pe:
+                        st.markdown(f"*P/E*: {pe:.2f}")
+                
+                # Growth
+                with col2:
+                    st.markdown("**Growth**")
+                    growth_score = fundamental.get('growth_score', 0)
+                    growth_signal = fundamental.get('growth_signal', 'STABLE')
+                    st.progress(growth_score, text=f"{growth_score:.1%}")
+                    st.markdown(f"*Signal*: {growth_signal}")
+                    
+                    rev_growth = fundamental.get('revenue_growth')
+                    if rev_growth:
+                        st.markdown(f"*Revenue*: {rev_growth:.2%}")
+                
+                # Profitability
+                with col3:
+                    st.markdown("**Profitability**")
+                    prof_score = fundamental.get('profitability_score', 0)
+                    prof_signal = fundamental.get('profitability_signal', 'MODERATE')
+                    st.progress(prof_score, text=f"{prof_score:.1%}")
+                    st.markdown(f"*Signal*: {prof_signal}")
+                    
+                    margin = fundamental.get('profit_margin')
+                    if margin:
+                        st.markdown(f"*Margin*: {margin:.2%}")
+                
+                # Financial Health
+                with col4:
+                    st.markdown("**Financial Health**")
+                    health_score = fundamental.get('health_score', 0)
+                    health_signal = fundamental.get('health_signal', 'STABLE')
+                    st.progress(health_score, text=f"{health_score:.1%}")
+                    st.markdown(f"*Signal*: {health_signal}")
+                    
+                    debt_ratio = fundamental.get('debt_to_equity')
+                    if debt_ratio:
+                        st.markdown(f"*D/E*: {debt_ratio:.2f}")
+                
+                st.markdown("---")
+                
+                reasoning_fund = fundamental.get('reasoning', 'No reasoning available')
+                st.markdown("### 📝 Fundamental Analysis")
+                
+                # Display reasoning as bullet points if it's a list
+                if isinstance(reasoning_fund, list):
+                    for point in reasoning_fund:
+                        st.markdown(f"- {point}")
+                else:
+                    st.info(reasoning_fund)
         
         # RISK TAB
         with tab4:
@@ -450,7 +512,13 @@ def render():
             
             reasoning_risk = risk.get('reasoning', 'No reasoning available')
             st.markdown("### 📝 Risk Analysis")
-            st.info(reasoning_risk)
+            
+            # Display reasoning as bullet points if it's a list
+            if isinstance(reasoning_risk, list):
+                for point in reasoning_risk:
+                    st.markdown(f"- {point}")
+            else:
+                st.info(reasoning_risk)
         
         # CHARTS TAB
         with tab5:

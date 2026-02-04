@@ -1,0 +1,31 @@
+# Streamlit Cloud Deployment - Simplified Dependencies
+# Use this file for cloud deployment
+
+# Core
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+
+# Streamlit & Visualization
+streamlit>=1.29.0
+plotly>=5.18.0
+matplotlib>=3.8.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Market Data
+yfinance>=0.2.30
+
+# Technical Analysis
+ta>=0.11.0
+
+# HTTP & Utils
+requests>=2.31.0
+aiohttp>=3.9.0
+tenacity>=8.2.0
+
+# LangChain (lighter versions)
+langchain>=0.1.0
+langchain-openai>=0.0.2
+langgraph>=0.0.20

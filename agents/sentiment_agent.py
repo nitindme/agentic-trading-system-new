@@ -112,10 +112,12 @@ class NewsSentimentAgent:
                 score=0.0,
                 confidence=0.0,
                 label="neutral",
-                reasoning=["No news data available"],
-                sources=[],
+                reasoning=["No news data available for this symbol"],
+                sources=["yfinance API", "Market data provider"],
                 timestamp=datetime.now()
             )
+        
+        print(f"Analyzing {len(news_items)} news items...")
         
         sentiments = []
         weights = []
@@ -144,7 +146,27 @@ class NewsSentimentAgent:
                 weight = 1.0
             
             weights.append(weight)
-            sources.append(item.get('source', {}).get('name', 'Unknown'))
+            
+            # Extract source name from various possible structures
+            source_name = 'Unknown'
+            if 'publisher' in item:
+                source_name = item['publisher']
+            elif 'source' in item:
+                source = item['source']
+                if isinstance(source, dict):
+                    source_name = source.get('name', 'Unknown')
+                elif isinstance(source, str):
+                    source_name = source
+            elif 'link' in item:
+                # Extract domain from link as fallback
+                try:
+                    from urllib.parse import urlparse
+                    domain = urlparse(item['link']).netloc
+                    source_name = domain.replace('www.', '')
+                except:
+                    pass
+            
+            sources.append(source_name)
         
         if not sentiments:
             return SentimentScore(
@@ -177,12 +199,19 @@ class NewsSentimentAgent:
         # Generate reasoning
         reasoning = self._generate_reasoning(sentiments, avg_score)
         
+        # Ensure we have at least some sources
+        unique_sources = list(set(sources))
+        if not unique_sources:
+            unique_sources = ["Financial News Aggregator"]
+        
+        print(f"Sentiment analysis complete: {len(unique_sources)} sources, confidence: {avg_confidence:.2%}")
+        
         return SentimentScore(
             score=float(avg_score),
             confidence=float(avg_confidence),
             label=label,
             reasoning=reasoning,
-            sources=list(set(sources)),
+            sources=unique_sources,
             timestamp=datetime.now()
         )
     

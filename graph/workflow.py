@@ -127,7 +127,9 @@ class TradingWorkflow:
         except Exception as e:
             errors = state.get("errors", [])
             errors.append(f"Sentiment analysis error: {str(e)}")
+            print(f"⚠️ Sentiment analysis failed: {str(e)}")
             return {
+                "sentiment": None,
                 "errors": errors
             }
     
@@ -144,7 +146,9 @@ class TradingWorkflow:
         except Exception as e:
             errors = state.get("errors", [])
             errors.append(f"Technical analysis error: {str(e)}")
+            print(f"⚠️ Technical analysis failed: {str(e)}")
             return {
+                "technical": None,
                 "errors": errors
             }
     
@@ -161,7 +165,9 @@ class TradingWorkflow:
         except Exception as e:
             errors = state.get("errors", [])
             errors.append(f"Fundamental analysis error: {str(e)}")
+            print(f"⚠️ Fundamental analysis failed: {str(e)}")
             return {
+                "fundamental": None,
                 "errors": errors
             }
     
@@ -338,22 +344,66 @@ class TradingWorkflow:
             "sentiment": {
                 "score": sentiment.score if sentiment else 0.0,
                 "label": sentiment.label if sentiment else "N/A",
-                "confidence": sentiment.confidence if sentiment else 0.0
+                "confidence": sentiment.confidence if sentiment else 0.0,
+                "reasoning": sentiment.reasoning if sentiment else [],
+                "sources": sentiment.sources if sentiment else []
             } if sentiment else None,
             
             "technical": {
-                "trend": technical.overall_trend if technical else "N/A",
-                "strength": technical.trend_strength if technical else 0.0,
-                "rsi": technical.rsi if technical else 0.0,
-                "macd_trend": technical.macd_trend if technical else "N/A"
+                "overall_trend": technical.overall_trend if technical else "NEUTRAL",
+                "trend_strength": technical.trend_strength if technical else 0.0,
+                "rsi": technical.rsi if technical else 50.0,
+                "rsi_signal": technical.rsi_signal if technical else "neutral",
+                "macd": technical.macd if technical else 0.0,
+                "macd_signal": technical.macd_signal if technical else 0.0,
+                "macd_trend": technical.macd_trend if technical else "neutral",
+                "sma_50": technical.sma_50 if technical else 0.0,
+                "sma_200": technical.sma_200 if technical else 0.0,
+                "ma_signal": technical.ma_signal if technical else "neutral",
+                "price": technical.price if technical else 0.0,
+                "volume": technical.volume if technical else 0,
+                "volume_sma_20": technical.volume_sma_20 if technical else 0,
+                "volume_trend": technical.volume_trend if technical else "stable",
+                "bb_upper": technical.bb_upper if technical else 0.0,
+                "bb_middle": technical.bb_middle if technical else 0.0,
+                "bb_lower": technical.bb_lower if technical else 0.0,
+                "bb_signal": technical.bb_signal if technical else "neutral",
+                "reasoning": technical.reasoning if technical else "No reasoning available",
+                "confidence": technical.confidence if technical else 0.0
             } if technical else None,
             
             "fundamental": {
-                "overall_signal": fundamental.overall_signal if fundamental else "N/A",
+                "overall_signal": fundamental.overall_signal if fundamental else "HOLD",
                 "overall_score": fundamental.overall_score if fundamental else 0.0,
-                "valuation": fundamental.valuation_signal if fundamental else "N/A",
-                "growth": fundamental.growth_signal if fundamental else "N/A"
+                "valuation_score": fundamental.valuation_score if fundamental else 0.0,
+                "valuation_signal": fundamental.valuation_signal if fundamental else "FAIR",
+                "growth_score": fundamental.growth_score if fundamental else 0.0,
+                "growth_signal": fundamental.growth_signal if fundamental else "STABLE",
+                "profitability_score": fundamental.profitability_score if fundamental else 0.0,
+                "profitability_signal": fundamental.profitability_signal if fundamental else "MODERATE",
+                "health_score": fundamental.health_score if fundamental else 0.0,
+                "health_signal": fundamental.health_signal if fundamental else "STABLE",
+                "pe_ratio": fundamental.pe_ratio if fundamental else None,
+                "revenue_growth": fundamental.revenue_growth if fundamental else None,
+                "profit_margin": fundamental.profit_margin if fundamental else None,
+                "debt_to_equity": fundamental.debt_to_equity if fundamental else None,
+                "reasoning": fundamental.reasoning if fundamental else "No reasoning available",
+                "confidence": fundamental.confidence if fundamental else 0.0
             } if fundamental else None,
+            
+            "risk": {
+                "risk_level": risk.risk_level if risk else "UNKNOWN",
+                "trade_approved": risk.trade_approved if risk else False,
+                "overall_confidence": risk.overall_confidence if risk else 0.0,
+                "guardrails_passed": {
+                    "volatility_check": risk.passes_volatility_check if risk else False,
+                    "liquidity_check": risk.passes_liquidity_check if risk else False,
+                    "confidence_check": risk.passes_confidence_check if risk else False,
+                    "conflict_check": risk.passes_conflict_check if risk else False
+                },
+                "risk_factors": risk.rejection_reasons if risk else [],
+                "reasoning": risk.reasoning if risk else []
+            } if risk else None,
             
             "reasoning": state.get('reasoning', []),
             "errors": state.get('errors', []),
