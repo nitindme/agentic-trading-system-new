@@ -181,7 +181,7 @@ class NewsSentimentAgent:
             sources.append({
                 'name': source_name,
                 'url': source_url,
-                'title': title[:150] if title else 'No title',
+                'title': title if title else 'No title',
                 'sentiment': article_sentiment,
                 'score': result['score']
             })
@@ -266,12 +266,12 @@ class NewsSentimentAgent:
         top_negative = min(sentiments, key=lambda x: x['score'], default=None)
         
         if top_positive and top_positive['score'] > 0.3:
-            # Use full_text if available, otherwise use text
-            article_text = top_positive.get('full_text', top_positive.get('text', ''))[:250]
+            # Use full_text if available, otherwise use text (no truncation)
+            article_text = top_positive.get('full_text', top_positive.get('text', ''))
             reasoning.append(f"📈 Most positive: \"{article_text}\"")
         
         if top_negative and top_negative['score'] < -0.3:
-            article_text = top_negative.get('full_text', top_negative.get('text', ''))[:250]
+            article_text = top_negative.get('full_text', top_negative.get('text', ''))
             reasoning.append(f"📉 Most negative: \"{article_text}\"")
         
         # Add confidence statement
