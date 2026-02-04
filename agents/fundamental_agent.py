@@ -18,12 +18,15 @@ class FundamentalScore(BaseModel):
     forward_pe: Optional[float]
     peg_ratio: Optional[float]
     price_to_book: Optional[float]
+    ev_to_ebitda: Optional[float]  # NEW: Enterprise Value to EBITDA
+    price_to_sales: Optional[float]  # NEW: Price to Sales ratio
     valuation_score: float  # 0.0 to 1.0
     valuation_signal: str  # "UNDERVALUED", "FAIR", "OVERVALUED"
     
     # Growth Metrics
     revenue_growth: Optional[float]
     earnings_growth: Optional[float]
+    free_cash_flow_growth: Optional[float]  # NEW: FCF growth
     growth_score: float  # 0.0 to 1.0
     growth_signal: str  # "HIGH_GROWTH", "MODERATE", "LOW_GROWTH"
     
@@ -31,6 +34,9 @@ class FundamentalScore(BaseModel):
     profit_margin: Optional[float]
     operating_margin: Optional[float]
     roe: Optional[float]  # Return on Equity
+    roa: Optional[float]  # NEW: Return on Assets
+    roic: Optional[float]  # NEW: Return on Invested Capital
+    gross_margin: Optional[float]  # NEW: Gross Margin
     profitability_score: float  # 0.0 to 1.0
     profitability_signal: str  # "HIGHLY_PROFITABLE", "PROFITABLE", "STRUGGLING"
     
@@ -38,8 +44,21 @@ class FundamentalScore(BaseModel):
     debt_to_equity: Optional[float]
     current_ratio: Optional[float]
     quick_ratio: Optional[float]
+    interest_coverage: Optional[float]  # NEW: Interest Coverage Ratio
+    free_cash_flow: Optional[float]  # NEW: Free Cash Flow
     health_score: float  # 0.0 to 1.0
     health_signal: str  # "STRONG", "STABLE", "WEAK"
+    
+    # NEW: Dividend & Shareholder Returns
+    dividend_yield: Optional[float]
+    payout_ratio: Optional[float]
+    buyback_yield: Optional[float]
+    shareholder_yield: Optional[float]  # Dividend + Buyback yield
+    
+    # NEW: Efficiency Metrics
+    asset_turnover: Optional[float]
+    inventory_turnover: Optional[float]
+    receivables_turnover: Optional[float]
     
     # Overall Assessment
     overall_score: float  # 0.0 to 1.0
@@ -64,11 +83,15 @@ class FundamentalAnalysisAgent:
         # Benchmark thresholds (industry averages)
         self.GOOD_PE = 25  # P/E ratio below this is good
         self.GOOD_PEG = 1.5  # PEG below this is good
+        self.GOOD_EV_EBITDA = 15  # EV/EBITDA below this is good
         self.GOOD_REVENUE_GROWTH = 0.10  # 10% YoY
         self.GOOD_PROFIT_MARGIN = 0.15  # 15%
         self.GOOD_ROE = 0.15  # 15%
+        self.GOOD_ROA = 0.10  # 10%
+        self.GOOD_ROIC = 0.12  # 12%
         self.GOOD_DEBT_TO_EQUITY = 0.5  # 0.5x
         self.GOOD_CURRENT_RATIO = 1.5  # 1.5x
+        self.GOOD_INTEREST_COVERAGE = 5  # 5x interest coverage
     
     def analyze(self, symbol: str) -> FundamentalScore:
         """
@@ -115,28 +138,49 @@ class FundamentalAnalysisAgent:
         # Calculate confidence based on data availability
         confidence = self._calculate_confidence(fundamentals)
         
+        # Extract shareholder return metrics
+        dividend_yield = fundamentals.get('dividend_yield')
+        payout_ratio = fundamentals.get('payout_ratio')
+        buyback_yield = fundamentals.get('buyback_yield', 0)
+        shareholder_yield = (dividend_yield or 0) + (buyback_yield or 0)
+        
         return FundamentalScore(
             symbol=symbol,
             pe_ratio=fundamentals.get('pe_ratio'),
             forward_pe=fundamentals.get('forward_pe'),
             peg_ratio=fundamentals.get('peg_ratio'),
             price_to_book=fundamentals.get('price_to_book'),
+            ev_to_ebitda=fundamentals.get('ev_to_ebitda'),
+            price_to_sales=fundamentals.get('price_to_sales'),
             valuation_score=float(valuation_score),
             valuation_signal=valuation_signal,
             revenue_growth=fundamentals.get('revenue_growth'),
             earnings_growth=fundamentals.get('earnings_growth'),
+            free_cash_flow_growth=fundamentals.get('fcf_growth'),
             growth_score=float(growth_score),
             growth_signal=growth_signal,
             profit_margin=fundamentals.get('profit_margin'),
             operating_margin=fundamentals.get('operating_margin'),
             roe=fundamentals.get('roe'),
+            roa=fundamentals.get('roa'),
+            roic=fundamentals.get('roic'),
+            gross_margin=fundamentals.get('gross_margin'),
             profitability_score=float(profitability_score),
             profitability_signal=profitability_signal,
             debt_to_equity=fundamentals.get('debt_to_equity'),
             current_ratio=fundamentals.get('current_ratio'),
             quick_ratio=fundamentals.get('quick_ratio'),
+            interest_coverage=fundamentals.get('interest_coverage'),
+            free_cash_flow=fundamentals.get('free_cash_flow'),
             health_score=float(health_score),
             health_signal=health_signal,
+            dividend_yield=dividend_yield,
+            payout_ratio=payout_ratio,
+            buyback_yield=buyback_yield,
+            shareholder_yield=shareholder_yield if shareholder_yield > 0 else None,
+            asset_turnover=fundamentals.get('asset_turnover'),
+            inventory_turnover=fundamentals.get('inventory_turnover'),
+            receivables_turnover=fundamentals.get('receivables_turnover'),
             overall_score=float(overall_score),
             overall_signal=overall_signal,
             reasoning=reasoning,

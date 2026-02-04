@@ -37,6 +37,20 @@ class RiskAssessment(BaseModel):
     passes_confidence_check: bool
     passes_conflict_check: bool
     
+    # NEW: Advanced Risk Metrics
+    beta: Optional[float]  # Market sensitivity
+    sharpe_ratio: Optional[float]  # Risk-adjusted return
+    max_drawdown: Optional[float]  # Maximum historical drawdown
+    value_at_risk: Optional[float]  # VaR (95% confidence)
+    sortino_ratio: Optional[float]  # Downside risk-adjusted return
+    
+    # NEW: Position Risk
+    position_risk: str  # "LOW", "MEDIUM", "HIGH"
+    suggested_position_size: Optional[float]  # As % of portfolio
+    stop_loss_price: Optional[float]  # Suggested stop-loss
+    take_profit_price: Optional[float]  # Suggested take-profit
+    risk_reward_ratio: Optional[float]  # Risk/Reward ratio
+    
     # Final Decision
     trade_approved: bool
     risk_level: str  # "LOW", "MEDIUM", "HIGH", "EXTREME"
@@ -44,6 +58,7 @@ class RiskAssessment(BaseModel):
     # Reasoning
     reasoning: List[str]
     rejection_reasons: List[str]
+    risk_factors: List[str]  # NEW: Detailed risk factors
     timestamp: datetime
 
 
@@ -112,9 +127,26 @@ class RiskAgent:
         )
         passes_confidence = overall_confidence >= self.min_confidence
         
+        # NEW: Calculate advanced risk metrics
+        beta = self._calculate_beta(symbol)
+        sharpe_ratio = self._calculate_sharpe_ratio(symbol)
+        max_drawdown = self._calculate_max_drawdown(symbol)
+        value_at_risk = self._calculate_var(symbol, volatility_value)
+        sortino_ratio = self._calculate_sortino_ratio(symbol)
+        
+        # NEW: Calculate position risk
+        current_price = self._get_current_price(symbol)
+        position_risk, suggested_size = self._calculate_position_risk(
+            volatility_value, beta, max_drawdown
+        )
+        stop_loss, take_profit, risk_reward = self._calculate_trade_levels(
+            current_price, volatility_value, technical
+        )
+        
         # Determine risk level
         risk_level = self._determine_risk_level(
-            volatility_risk, liquidity_risk, conflict_risk, overall_confidence
+            volatility_risk, liquidity_risk, conflict_risk, overall_confidence,
+            beta, max_drawdown
         )
         
         # Final approval decision
@@ -125,12 +157,18 @@ class RiskAgent:
             passes_conflict
         )
         
-        # Generate reasoning
+        # Generate reasoning and risk factors
         reasoning, rejection_reasons = self._generate_reasoning(
             trade_approved,
             volatility_risk, liquidity_risk, conflict_risk,
             overall_confidence, passes_confidence,
             conflicts
+        )
+        
+        # NEW: Generate detailed risk factors list
+        risk_factors = self._generate_risk_factors(
+            volatility_value, beta, max_drawdown, value_at_risk,
+            liquidity_risk, conflict_risk
         )
         
         return RiskAssessment(
@@ -147,10 +185,21 @@ class RiskAgent:
             passes_liquidity_check=passes_liquidity,
             passes_confidence_check=passes_confidence,
             passes_conflict_check=passes_conflict,
+            beta=beta,
+            sharpe_ratio=sharpe_ratio,
+            max_drawdown=max_drawdown,
+            value_at_risk=value_at_risk,
+            sortino_ratio=sortino_ratio,
+            position_risk=position_risk,
+            suggested_position_size=suggested_size,
+            stop_loss_price=stop_loss,
+            take_profit_price=take_profit,
+            risk_reward_ratio=risk_reward,
             trade_approved=trade_approved,
             risk_level=risk_level,
             reasoning=reasoning,
             rejection_reasons=rejection_reasons,
+            risk_factors=risk_factors,
             timestamp=datetime.now()
         )
     
@@ -308,7 +357,9 @@ class RiskAgent:
         volatility_risk: str,
         liquidity_risk: str,
         conflict_risk: str,
-        confidence: float
+        confidence: float,
+        beta: Optional[float] = None,
+        max_drawdown: Optional[float] = None
     ) -> str:
         """Determine overall risk level"""
         risk_scores = {
@@ -329,6 +380,20 @@ class RiskAgent:
         elif confidence < 0.75:
             total_risk += 1
         
+        # NEW: Adjust for beta
+        if beta is not None:
+            if abs(beta) > 1.5:
+                total_risk += 1
+            elif abs(beta) > 2.0:
+                total_risk += 2
+        
+        # NEW: Adjust for max drawdown
+        if max_drawdown is not None:
+            if max_drawdown > 0.20:  # More than 20% drawdown
+                total_risk += 1
+            if max_drawdown > 0.30:  # More than 30% drawdown
+                total_risk += 1
+        
         # Map to risk level
         if total_risk == 0:
             return "LOW"
@@ -338,6 +403,220 @@ class RiskAgent:
             return "HIGH"
         else:
             return "EXTREME"
+    
+    def _calculate_beta(self, symbol: str) -> Optional[float]:
+        """Calculate stock beta relative to market (S&P 500)"""
+        try:
+            # Get stock and market data
+            stock_data = self.market_data.get_historical_data(symbol, period="1y", interval="1d")
+            market_data = self.market_data.get_historical_data("SPY", period="1y", interval="1d")
+            
+            if stock_data.empty or market_data.empty:
+                return None
+            
+            # Calculate daily returns
+            stock_returns = stock_data['Close'].pct_change().dropna()
+            market_returns = market_data['Close'].pct_change().dropna()
+            
+            # Align data
+            min_len = min(len(stock_returns), len(market_returns))
+            stock_returns = stock_returns.iloc[-min_len:]
+            market_returns = market_returns.iloc[-min_len:]
+            
+            # Calculate beta using covariance/variance
+            import numpy as np
+            covariance = np.cov(stock_returns, market_returns)[0][1]
+            market_variance = np.var(market_returns)
+            
+            if market_variance > 0:
+                return covariance / market_variance
+            return None
+        except Exception:
+            return None
+    
+    def _calculate_sharpe_ratio(self, symbol: str, risk_free_rate: float = 0.04) -> Optional[float]:
+        """Calculate Sharpe ratio (risk-adjusted return)"""
+        try:
+            stock_data = self.market_data.get_historical_data(symbol, period="1y", interval="1d")
+            if stock_data.empty:
+                return None
+            
+            import numpy as np
+            returns = stock_data['Close'].pct_change().dropna()
+            
+            # Annualized return and volatility
+            annual_return = returns.mean() * 252
+            annual_volatility = returns.std() * np.sqrt(252)
+            
+            if annual_volatility > 0:
+                return (annual_return - risk_free_rate) / annual_volatility
+            return None
+        except Exception:
+            return None
+    
+    def _calculate_sortino_ratio(self, symbol: str, risk_free_rate: float = 0.04) -> Optional[float]:
+        """Calculate Sortino ratio (downside risk-adjusted return)"""
+        try:
+            stock_data = self.market_data.get_historical_data(symbol, period="1y", interval="1d")
+            if stock_data.empty:
+                return None
+            
+            import numpy as np
+            returns = stock_data['Close'].pct_change().dropna()
+            
+            # Annualized return
+            annual_return = returns.mean() * 252
+            
+            # Downside deviation (only negative returns)
+            negative_returns = returns[returns < 0]
+            downside_deviation = negative_returns.std() * np.sqrt(252)
+            
+            if downside_deviation > 0:
+                return (annual_return - risk_free_rate) / downside_deviation
+            return None
+        except Exception:
+            return None
+    
+    def _calculate_max_drawdown(self, symbol: str) -> Optional[float]:
+        """Calculate maximum drawdown from peak"""
+        try:
+            stock_data = self.market_data.get_historical_data(symbol, period="1y", interval="1d")
+            if stock_data.empty:
+                return None
+            
+            prices = stock_data['Close']
+            peak = prices.expanding(min_periods=1).max()
+            drawdown = (prices - peak) / peak
+            
+            return abs(drawdown.min())
+        except Exception:
+            return None
+    
+    def _calculate_var(self, symbol: str, volatility: float, confidence_level: float = 0.95) -> Optional[float]:
+        """Calculate Value at Risk (VaR) at given confidence level"""
+        try:
+            import numpy as np
+            # Using parametric VaR
+            z_score = 1.645 if confidence_level == 0.95 else 2.326  # 95% or 99%
+            daily_var = volatility * z_score
+            return daily_var
+        except Exception:
+            return None
+    
+    def _get_current_price(self, symbol: str) -> Optional[float]:
+        """Get current stock price"""
+        try:
+            market_data = self.market_data.get_current_data(symbol)
+            return market_data.price
+        except Exception:
+            return None
+    
+    def _calculate_position_risk(
+        self,
+        volatility: float,
+        beta: Optional[float],
+        max_drawdown: Optional[float]
+    ) -> tuple:
+        """Calculate position risk and suggested position size"""
+        # Base position size (as % of portfolio)
+        base_size = 5.0  # 5% default
+        
+        # Adjust for volatility
+        if volatility > 0.30:
+            base_size *= 0.5
+        elif volatility > 0.20:
+            base_size *= 0.75
+        
+        # Adjust for beta
+        if beta is not None and abs(beta) > 1.5:
+            base_size *= 0.75
+        
+        # Adjust for drawdown risk
+        if max_drawdown is not None and max_drawdown > 0.25:
+            base_size *= 0.75
+        
+        # Determine risk level
+        if base_size >= 4.0:
+            risk = "LOW"
+        elif base_size >= 2.5:
+            risk = "MEDIUM"
+        else:
+            risk = "HIGH"
+        
+        return risk, base_size
+    
+    def _calculate_trade_levels(
+        self,
+        current_price: Optional[float],
+        volatility: float,
+        technical: Optional[TechnicalSignals]
+    ) -> tuple:
+        """Calculate stop-loss, take-profit, and risk/reward ratio"""
+        if current_price is None:
+            return None, None, None
+        
+        # Use ATR-based stops if available from technical analysis
+        if technical and hasattr(technical, 'atr'):
+            atr = technical.atr
+            stop_loss = current_price - (2 * atr)  # 2 ATR stop
+            take_profit = current_price + (3 * atr)  # 3 ATR target
+        else:
+            # Use volatility-based stops
+            stop_distance = current_price * volatility * 0.5  # 0.5x volatility
+            stop_loss = current_price - stop_distance
+            take_profit = current_price + (stop_distance * 2)  # 2:1 R/R
+        
+        # Calculate risk/reward ratio
+        risk = current_price - stop_loss
+        reward = take_profit - current_price
+        risk_reward = reward / risk if risk > 0 else None
+        
+        return stop_loss, take_profit, risk_reward
+    
+    def _generate_risk_factors(
+        self,
+        volatility: float,
+        beta: Optional[float],
+        max_drawdown: Optional[float],
+        var: Optional[float],
+        liquidity_risk: str,
+        conflict_risk: str
+    ) -> List[str]:
+        """Generate detailed list of risk factors"""
+        factors = []
+        
+        # Volatility risk
+        if volatility > 0.30:
+            factors.append(f"HIGH volatility ({volatility:.1%}) - Expect large price swings")
+        elif volatility > 0.20:
+            factors.append(f"MODERATE volatility ({volatility:.1%}) - Normal market fluctuations")
+        
+        # Beta risk
+        if beta is not None:
+            if beta > 1.5:
+                factors.append(f"HIGH beta ({beta:.2f}) - Amplified market moves")
+            elif beta < 0.5:
+                factors.append(f"LOW beta ({beta:.2f}) - Defensive stock")
+            elif beta < 0:
+                factors.append(f"NEGATIVE beta ({beta:.2f}) - Counter-market moves")
+        
+        # Drawdown risk
+        if max_drawdown is not None and max_drawdown > 0.20:
+            factors.append(f"SIGNIFICANT drawdown history ({max_drawdown:.1%} max)")
+        
+        # VaR risk
+        if var is not None and var > 0.05:
+            factors.append(f"Daily VaR of {var:.1%} at 95% confidence")
+        
+        # Liquidity risk
+        if liquidity_risk == "HIGH":
+            factors.append("LOW liquidity - May face slippage on large orders")
+        
+        # Signal conflict risk
+        if conflict_risk == "HIGH":
+            factors.append("CONFLICTING signals - Analysis uncertainty")
+        
+        return factors
     
     def _generate_reasoning(
         self,

@@ -150,7 +150,36 @@ class MarketDataProvider:
             "52_week_low": info.get('fiftyTwoWeekLow'),
             "50_day_avg": info.get('fiftyDayAverage'),
             "200_day_avg": info.get('twoHundredDayAverage'),
+            # NEW: Additional fundamental metrics
+            "ev_to_ebitda": info.get('enterpriseToEbitda'),
+            "price_to_sales": info.get('priceToSalesTrailing12Months'),
+            "gross_margin": info.get('grossMargins'),
+            "ebitda_margin": info.get('ebitdaMargins'),
+            "free_cash_flow": info.get('freeCashflow'),
+            "operating_cash_flow": info.get('operatingCashflow'),
+            "total_cash": info.get('totalCash'),
+            "total_debt": info.get('totalDebt'),
+            "enterprise_value": info.get('enterpriseValue'),
+            "roic": info.get('returnOnCapital'),  # May not be available in yfinance
+            "asset_turnover": self._calculate_asset_turnover(info),
+            "interest_coverage": self._calculate_interest_coverage(info),
         }
+    
+    def _calculate_asset_turnover(self, info: Dict) -> Optional[float]:
+        """Calculate asset turnover ratio"""
+        revenue = info.get('totalRevenue')
+        total_assets = info.get('totalAssets')
+        if revenue and total_assets and total_assets > 0:
+            return revenue / total_assets
+        return None
+    
+    def _calculate_interest_coverage(self, info: Dict) -> Optional[float]:
+        """Calculate interest coverage ratio"""
+        ebit = info.get('ebitda')  # Using EBITDA as proxy for EBIT
+        interest_expense = info.get('interestExpense')
+        if ebit and interest_expense and interest_expense != 0:
+            return abs(ebit / interest_expense)
+        return None
     
     def get_earnings_history(self, symbol: str) -> pd.DataFrame:
         """Get historical earnings data"""

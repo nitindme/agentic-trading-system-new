@@ -251,8 +251,8 @@ def render():
                 
                 st.markdown("---")
                 
-                # Technical indicators details
-                col1, col2 = st.columns(2)
+                # Technical indicators details - Row 1
+                col1, col2, col3 = st.columns(3)
                 
                 with col1:
                     st.markdown("### Moving Averages")
@@ -260,7 +260,6 @@ def render():
                     sma_50 = technical.get('sma_50', 0)
                     sma_200 = technical.get('sma_200', 0)
                     signal_ma = technical.get('ma_signal', 'neutral')
-                    current_price = technical.get('price', 0)
                     
                     st.markdown(f"**SMA 50**: ${sma_50:.2f}")
                     st.markdown(f"**SMA 200**: ${sma_200:.2f}")
@@ -272,22 +271,102 @@ def render():
                         st.warning("⚠️ Death Cross (Bearish)")
                 
                 with col2:
-                    st.markdown("### Volume & Bollinger")
+                    st.markdown("### Stochastic Oscillator")
+                    stoch_k = technical.get('stoch_k', 50)
+                    stoch_d = technical.get('stoch_d', 50)
+                    stoch_signal = technical.get('stoch_signal', 'NEUTRAL')
                     
-                    vol_trend = technical.get('volume_trend', 'stable')
-                    st.markdown(f"**Volume Trend**: {vol_trend.upper()}")
+                    st.metric("%K", f"{stoch_k:.1f}")
+                    st.metric("%D", f"{stoch_d:.1f}")
                     
-                    volume = technical.get('volume', 0)
-                    volume_sma = technical.get('volume_sma_20', 0)
-                    if volume_sma > 0:
-                        vol_ratio = (volume / volume_sma - 1) * 100
-                        st.metric("Volume vs Avg", f"{vol_ratio:+.1f}%")
+                    if stoch_signal == "OVERBOUGHT":
+                        st.warning("⚠️ Overbought")
+                    elif stoch_signal == "OVERSOLD":
+                        st.success("✅ Oversold - Potential Buy")
+                    else:
+                        st.info("📊 Neutral")
+                
+                with col3:
+                    st.markdown("### ADX (Trend Strength)")
+                    adx = technical.get('adx', 0)
+                    adx_signal = technical.get('adx_signal', 'NO_TREND')
+                    plus_di = technical.get('plus_di', 0)
+                    minus_di = technical.get('minus_di', 0)
                     
+                    st.metric("ADX", f"{adx:.1f}", adx_signal)
+                    st.markdown(f"+DI: {plus_di:.1f} | -DI: {minus_di:.1f}")
+                    
+                    if adx_signal == "STRONG_TREND":
+                        st.success("✅ Strong Trend")
+                    elif adx_signal == "WEAK_TREND":
+                        st.info("📊 Weak Trend")
+                    else:
+                        st.warning("⚠️ No Clear Trend")
+                
+                st.markdown("---")
+                
+                # Technical indicators - Row 2
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.markdown("### Bollinger Bands")
                     bb_upper = technical.get('bb_upper', 0)
                     bb_middle = technical.get('bb_middle', 0)
                     bb_lower = technical.get('bb_lower', 0)
-                    bb_signal = technical.get('bb_signal', 'neutral')
-                    st.markdown(f"**Bollinger Signal**: {bb_signal.upper()}")
+                    bb_signal = technical.get('bb_signal', 'NEUTRAL')
+                    
+                    st.markdown(f"**Upper**: ${bb_upper:.2f}")
+                    st.markdown(f"**Middle**: ${bb_middle:.2f}")
+                    st.markdown(f"**Lower**: ${bb_lower:.2f}")
+                    st.markdown(f"**Signal**: {bb_signal}")
+                
+                with col2:
+                    st.markdown("### Volatility (ATR)")
+                    atr = technical.get('atr', 0)
+                    atr_percent = technical.get('atr_percent', 0)
+                    
+                    st.metric("ATR", f"${atr:.2f}")
+                    st.metric("ATR %", f"{atr_percent:.2f}%")
+                    
+                    if atr_percent > 3:
+                        st.error("🔴 High Volatility")
+                    elif atr_percent > 2:
+                        st.warning("🟡 Moderate Volatility")
+                    else:
+                        st.success("🟢 Low Volatility")
+                
+                with col3:
+                    st.markdown("### Support/Resistance")
+                    support = technical.get('support_level', 0)
+                    resistance = technical.get('resistance_level', 0)
+                    price_to_support = technical.get('price_to_support', 0)
+                    price_to_resistance = technical.get('price_to_resistance', 0)
+                    
+                    st.markdown(f"**Support**: ${support:.2f} ({price_to_support:+.1f}%)")
+                    st.markdown(f"**Resistance**: ${resistance:.2f} ({price_to_resistance:+.1f}%)")
+                
+                st.markdown("---")
+                
+                # Volume Analysis
+                st.markdown("### Volume Analysis")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    vol_trend = technical.get('volume_trend', 'NORMAL')
+                    volume = technical.get('volume', 0)
+                    volume_sma = technical.get('volume_sma_20', 0)
+                    
+                    st.metric("Current Volume", f"{volume:,.0f}")
+                    if volume_sma > 0:
+                        vol_ratio = (volume / volume_sma - 1) * 100
+                        st.metric("Volume vs Avg", f"{vol_ratio:+.1f}%")
+                
+                with col2:
+                    st.markdown(f"**Trend**: {vol_trend}")
+                    if vol_trend == "INCREASING":
+                        st.success("📈 High volume confirms trend")
+                    elif vol_trend == "DECREASING":
+                        st.warning("📉 Low volume - weak conviction")
                 
                 st.markdown("---")
                 
@@ -365,6 +444,15 @@ def render():
                     pe = fundamental.get('pe_ratio')
                     if pe:
                         st.markdown(f"*P/E*: {pe:.2f}")
+                    
+                    # NEW: Additional valuation metrics
+                    ev_ebitda = fundamental.get('ev_to_ebitda')
+                    if ev_ebitda:
+                        st.markdown(f"*EV/EBITDA*: {ev_ebitda:.2f}")
+                    
+                    ps = fundamental.get('price_to_sales')
+                    if ps:
+                        st.markdown(f"*P/S*: {ps:.2f}")
                 
                 # Growth
                 with col2:
@@ -377,6 +465,10 @@ def render():
                     rev_growth = fundamental.get('revenue_growth')
                     if rev_growth:
                         st.markdown(f"*Revenue*: {rev_growth:.2%}")
+                    
+                    earn_growth = fundamental.get('earnings_growth')
+                    if earn_growth:
+                        st.markdown(f"*Earnings*: {earn_growth:.2%}")
                 
                 # Profitability
                 with col3:
@@ -389,6 +481,14 @@ def render():
                     margin = fundamental.get('profit_margin')
                     if margin:
                         st.markdown(f"*Margin*: {margin:.2%}")
+                    
+                    roe = fundamental.get('roe')
+                    if roe:
+                        st.markdown(f"*ROE*: {roe:.2%}")
+                    
+                    roa = fundamental.get('roa')
+                    if roa:
+                        st.markdown(f"*ROA*: {roa:.2%}")
                 
                 # Financial Health
                 with col4:
@@ -401,6 +501,52 @@ def render():
                     debt_ratio = fundamental.get('debt_to_equity')
                     if debt_ratio:
                         st.markdown(f"*D/E*: {debt_ratio:.2f}")
+                    
+                    current_ratio = fundamental.get('current_ratio')
+                    if current_ratio:
+                        st.markdown(f"*Current*: {current_ratio:.2f}")
+                
+                st.markdown("---")
+                
+                # NEW: Additional Fundamental Metrics
+                st.markdown("### 💵 Shareholder Returns & Efficiency")
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.markdown("**Dividends**")
+                    div_yield = fundamental.get('dividend_yield')
+                    payout = fundamental.get('payout_ratio')
+                    
+                    if div_yield:
+                        st.metric("Dividend Yield", f"{div_yield:.2%}")
+                    else:
+                        st.markdown("*No dividend*")
+                    
+                    if payout:
+                        st.markdown(f"*Payout Ratio*: {payout:.1%}")
+                
+                with col2:
+                    st.markdown("**Cash Flow**")
+                    fcf = fundamental.get('free_cash_flow')
+                    if fcf:
+                        if fcf >= 1_000_000_000:
+                            st.metric("Free Cash Flow", f"${fcf/1e9:.1f}B")
+                        elif fcf >= 1_000_000:
+                            st.metric("Free Cash Flow", f"${fcf/1e6:.1f}M")
+                        else:
+                            st.metric("Free Cash Flow", f"${fcf:,.0f}")
+                    else:
+                        st.markdown("*FCF not available*")
+                
+                with col3:
+                    st.markdown("**Efficiency**")
+                    asset_turn = fundamental.get('asset_turnover')
+                    gross_margin = fundamental.get('gross_margin')
+                    
+                    if asset_turn:
+                        st.markdown(f"*Asset Turnover*: {asset_turn:.2f}x")
+                    if gross_margin:
+                        st.markdown(f"*Gross Margin*: {gross_margin:.1%}")
                 
                 st.markdown("---")
                 
@@ -457,32 +603,125 @@ def render():
             
             st.markdown("---")
             
+            # NEW: Advanced Risk Metrics
+            st.markdown("### 📊 Advanced Risk Metrics")
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                beta = risk.get('beta')
+                if beta is not None:
+                    st.metric("Beta", f"{beta:.2f}")
+                    if beta > 1.5:
+                        st.caption("🔴 High market sensitivity")
+                    elif beta < 0.5:
+                        st.caption("🟢 Defensive stock")
+                    else:
+                        st.caption("🟡 Market-average")
+                else:
+                    st.metric("Beta", "N/A")
+            
+            with col2:
+                sharpe = risk.get('sharpe_ratio')
+                if sharpe is not None:
+                    st.metric("Sharpe Ratio", f"{sharpe:.2f}")
+                    if sharpe > 1:
+                        st.caption("🟢 Good risk-adjusted return")
+                    elif sharpe < 0:
+                        st.caption("🔴 Negative returns")
+                    else:
+                        st.caption("🟡 Low risk-adjusted return")
+                else:
+                    st.metric("Sharpe Ratio", "N/A")
+            
+            with col3:
+                max_dd = risk.get('max_drawdown')
+                if max_dd is not None:
+                    st.metric("Max Drawdown", f"{max_dd:.1%}")
+                    if max_dd > 0.30:
+                        st.caption("🔴 High drawdown risk")
+                    elif max_dd > 0.20:
+                        st.caption("🟡 Moderate drawdown")
+                    else:
+                        st.caption("🟢 Low drawdown")
+                else:
+                    st.metric("Max Drawdown", "N/A")
+            
+            with col4:
+                var = risk.get('value_at_risk')
+                if var is not None:
+                    st.metric("Daily VaR (95%)", f"{var:.1%}")
+                    st.caption("Max daily loss at 95% conf.")
+                else:
+                    st.metric("Daily VaR", "N/A")
+            
+            st.markdown("---")
+            
+            # NEW: Position Sizing & Trade Levels
+            st.markdown("### � Position Sizing & Trade Levels")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                position_risk = risk.get('position_risk', 'MEDIUM')
+                suggested_size = risk.get('suggested_position_size')
+                
+                st.markdown("**Position Risk**")
+                risk_colors = {"LOW": "🟢", "MEDIUM": "🟡", "HIGH": "🔴"}
+                st.markdown(f"{risk_colors.get(position_risk, '⚪')} {position_risk}")
+                
+                if suggested_size:
+                    st.metric("Suggested Size", f"{suggested_size:.1f}% of portfolio")
+            
+            with col2:
+                stop_loss = risk.get('stop_loss_price')
+                take_profit = risk.get('take_profit_price')
+                
+                if stop_loss:
+                    st.metric("Stop Loss", f"${stop_loss:.2f}")
+                if take_profit:
+                    st.metric("Take Profit", f"${take_profit:.2f}")
+            
+            with col3:
+                risk_reward = risk.get('risk_reward_ratio')
+                sortino = risk.get('sortino_ratio')
+                
+                if risk_reward:
+                    st.metric("Risk/Reward", f"{risk_reward:.1f}:1")
+                    if risk_reward >= 2:
+                        st.caption("🟢 Favorable R/R")
+                    else:
+                        st.caption("🟡 Marginal R/R")
+                
+                if sortino is not None:
+                    st.metric("Sortino Ratio", f"{sortino:.2f}")
+            
+            st.markdown("---")
+            
             # Guardrail checks
             st.markdown("### 🛡️ Guardrail Checks")
-            
-            guardrails = risk.get('guardrails_passed', {})
             
             col1, col2 = st.columns(2)
             
             with col1:
-                volatility_check = guardrails.get('volatility_check', False)
-                liquidity_check = guardrails.get('liquidity_check', False)
+                volatility_check = risk.get('passes_volatility_check', False)
+                liquidity_check = risk.get('passes_liquidity_check', False)
                 
                 st.markdown("**Volatility Check**")
+                volatility_val = risk.get('volatility_value', 0)
                 if volatility_check:
-                    st.success("✅ PASS - Volatility within limits")
+                    st.success(f"✅ PASS - {volatility_val:.1%} volatility")
                 else:
-                    st.error("❌ FAIL - Volatility too high")
+                    st.error(f"❌ FAIL - {volatility_val:.1%} too high")
                 
                 st.markdown("**Liquidity Check**")
+                volume = risk.get('volume', 0)
                 if liquidity_check:
-                    st.success("✅ PASS - Sufficient liquidity")
+                    st.success(f"✅ PASS - {volume:,} volume")
                 else:
-                    st.error("❌ FAIL - Low liquidity")
+                    st.error(f"❌ FAIL - {volume:,} insufficient")
             
             with col2:
-                confidence_check = guardrails.get('confidence_check', False)
-                conflict_check = guardrails.get('conflict_check', False)
+                confidence_check = risk.get('passes_confidence_check', False)
+                conflict_check = risk.get('passes_conflict_check', False)
                 
                 st.markdown("**Confidence Check**")
                 if confidence_check:
@@ -494,7 +733,8 @@ def render():
                 if conflict_check:
                     st.success("✅ PASS - Signals aligned")
                 else:
-                    st.error("❌ FAIL - Conflicting signals")
+                    conflicts = risk.get('conflicting_signals', [])
+                    st.error(f"❌ FAIL - {len(conflicts)} conflicts")
             
             st.markdown("---")
             
@@ -504,7 +744,7 @@ def render():
             risk_factors = risk.get('risk_factors', [])
             if risk_factors:
                 for factor in risk_factors:
-                    st.warning(f"- {factor}")
+                    st.warning(f"⚠️ {factor}")
             else:
                 st.success("✅ No major risk factors identified")
             
