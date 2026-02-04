@@ -562,36 +562,51 @@ def render():
                     div_yield = fundamental.get('dividend_yield')
                     payout = fundamental.get('payout_ratio')
                     
-                    if div_yield:
+                    if div_yield and div_yield > 0:
                         st.metric("Dividend Yield", f"{div_yield:.2%}")
+                        if payout:
+                            st.markdown(f"*Payout Ratio*: {payout:.1%}")
                     else:
-                        st.markdown("*No dividend*")
-                    
-                    if payout:
-                        st.markdown(f"*Payout Ratio*: {payout:.1%}")
+                        st.markdown("*Non-dividend stock*")
                 
                 with col2:
                     st.markdown("**Cash Flow**")
                     fcf = fundamental.get('free_cash_flow')
                     if fcf:
                         if fcf >= 1_000_000_000:
-                            st.metric("Free Cash Flow", f"${fcf/1e9:.1f}B")
+                            fcf_display = f"${fcf/1e9:.1f}B"
                         elif fcf >= 1_000_000:
-                            st.metric("Free Cash Flow", f"${fcf/1e6:.1f}M")
+                            fcf_display = f"${fcf/1e6:.1f}M"
+                        elif fcf <= -1_000_000_000:
+                            fcf_display = f"-${abs(fcf)/1e9:.1f}B"
+                        elif fcf <= -1_000_000:
+                            fcf_display = f"-${abs(fcf)/1e6:.1f}M"
                         else:
-                            st.metric("Free Cash Flow", f"${fcf:,.0f}")
+                            fcf_display = f"${fcf:,.0f}"
+                        
+                        st.metric("Free Cash Flow", fcf_display)
+                        if fcf > 0:
+                            st.caption("🟢 Positive cash generation")
+                        else:
+                            st.caption("🔴 Negative cash flow")
                     else:
-                        st.markdown("*FCF not available*")
+                        st.markdown("*Data pending*")
                 
                 with col3:
                     st.markdown("**Efficiency**")
                     asset_turn = fundamental.get('asset_turnover')
                     gross_margin = fundamental.get('gross_margin')
                     
+                    has_efficiency_data = False
                     if asset_turn:
                         st.markdown(f"*Asset Turnover*: {asset_turn:.2f}x")
+                        has_efficiency_data = True
                     if gross_margin:
                         st.markdown(f"*Gross Margin*: {gross_margin:.1%}")
+                        has_efficiency_data = True
+                    
+                    if not has_efficiency_data:
+                        st.markdown("*Data pending*")
                 
                 st.markdown("---")
                 

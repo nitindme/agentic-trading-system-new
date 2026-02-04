@@ -104,10 +104,40 @@ class FundamentalAnalysisAgent:
             FundamentalScore with all metrics
         """
         # Fetch fundamental data
-        fundamentals = self.market_data.get_fundamentals(symbol)
+        try:
+            fundamentals = self.market_data.get_fundamentals(symbol)
+            print(f"📊 Fundamentals fetched for {symbol}: {len(fundamentals)} metrics")
+            
+            # Log key metrics
+            pe = fundamentals.get('pe_ratio')
+            div = fundamentals.get('dividend_yield')
+            fcf = fundamentals.get('free_cash_flow')
+            print(f"   - P/E: {pe}, Dividend: {div}, FCF: {fcf}")
+        except Exception as e:
+            print(f"⚠️ Error fetching fundamentals for {symbol}: {str(e)}")
+            fundamentals = {}
         
         if not fundamentals:
-            raise ValueError(f"No fundamental data available for: {symbol}")
+            print(f"⚠️ No fundamental data available for: {symbol}")
+            # Return default values instead of raising error
+            return FundamentalScore(
+                symbol=symbol,
+                pe_ratio=None, forward_pe=None, peg_ratio=None, price_to_book=None,
+                ev_to_ebitda=None, price_to_sales=None,
+                valuation_score=0.5, valuation_signal="FAIR",
+                revenue_growth=None, earnings_growth=None, free_cash_flow_growth=None,
+                growth_score=0.5, growth_signal="MODERATE",
+                profit_margin=None, operating_margin=None, roe=None, roa=None, roic=None, gross_margin=None,
+                profitability_score=0.5, profitability_signal="MODERATE",
+                debt_to_equity=None, current_ratio=None, quick_ratio=None, interest_coverage=None, free_cash_flow=None,
+                health_score=0.5, health_signal="STABLE",
+                dividend_yield=None, payout_ratio=None, buyback_yield=None, shareholder_yield=None,
+                asset_turnover=None, inventory_turnover=None, receivables_turnover=None,
+                overall_score=0.5, overall_signal="HOLD",
+                reasoning=["Fundamental data unavailable - using neutral defaults"],
+                confidence=0.3,
+                timestamp=datetime.now()
+            )
         
         # Analyze each category
         valuation_score, valuation_signal = self._analyze_valuation(fundamentals)

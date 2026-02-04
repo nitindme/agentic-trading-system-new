@@ -124,46 +124,61 @@ class MarketDataProvider:
         Returns:
             Dict with key fundamental metrics
         """
-        ticker = yf.Ticker(symbol)
-        info = ticker.info
-        
-        return {
-            "market_cap": info.get('marketCap'),
-            "pe_ratio": info.get('trailingPE'),
-            "forward_pe": info.get('forwardPE'),
-            "peg_ratio": info.get('pegRatio'),
-            "price_to_book": info.get('priceToBook'),
-            "revenue": info.get('totalRevenue'),
-            "revenue_growth": info.get('revenueGrowth'),
-            "earnings_growth": info.get('earningsGrowth'),
-            "profit_margin": info.get('profitMargins'),
-            "operating_margin": info.get('operatingMargins'),
-            "roe": info.get('returnOnEquity'),
-            "roa": info.get('returnOnAssets'),
-            "debt_to_equity": info.get('debtToEquity'),
-            "current_ratio": info.get('currentRatio'),
-            "quick_ratio": info.get('quickRatio'),
-            "dividend_yield": info.get('dividendYield'),
-            "payout_ratio": info.get('payoutRatio'),
-            "beta": info.get('beta'),
-            "52_week_high": info.get('fiftyTwoWeekHigh'),
-            "52_week_low": info.get('fiftyTwoWeekLow'),
-            "50_day_avg": info.get('fiftyDayAverage'),
-            "200_day_avg": info.get('twoHundredDayAverage'),
-            # NEW: Additional fundamental metrics
-            "ev_to_ebitda": info.get('enterpriseToEbitda'),
-            "price_to_sales": info.get('priceToSalesTrailing12Months'),
-            "gross_margin": info.get('grossMargins'),
-            "ebitda_margin": info.get('ebitdaMargins'),
-            "free_cash_flow": info.get('freeCashflow'),
-            "operating_cash_flow": info.get('operatingCashflow'),
-            "total_cash": info.get('totalCash'),
-            "total_debt": info.get('totalDebt'),
-            "enterprise_value": info.get('enterpriseValue'),
-            "roic": info.get('returnOnCapital'),  # May not be available in yfinance
-            "asset_turnover": self._calculate_asset_turnover(info),
-            "interest_coverage": self._calculate_interest_coverage(info),
-        }
+        try:
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
+            
+            if not info or len(info) < 5:
+                print(f"⚠️ Limited info available from yfinance for {symbol}")
+                return {}
+            
+            fundamentals = {
+                "market_cap": info.get('marketCap'),
+                "pe_ratio": info.get('trailingPE'),
+                "forward_pe": info.get('forwardPE'),
+                "peg_ratio": info.get('pegRatio'),
+                "price_to_book": info.get('priceToBook'),
+                "revenue": info.get('totalRevenue'),
+                "revenue_growth": info.get('revenueGrowth'),
+                "earnings_growth": info.get('earningsGrowth'),
+                "profit_margin": info.get('profitMargins'),
+                "operating_margin": info.get('operatingMargins'),
+                "roe": info.get('returnOnEquity'),
+                "roa": info.get('returnOnAssets'),
+                "debt_to_equity": info.get('debtToEquity'),
+                "current_ratio": info.get('currentRatio'),
+                "quick_ratio": info.get('quickRatio'),
+                "dividend_yield": info.get('dividendYield'),
+                "payout_ratio": info.get('payoutRatio'),
+                "beta": info.get('beta'),
+                "52_week_high": info.get('fiftyTwoWeekHigh'),
+                "52_week_low": info.get('fiftyTwoWeekLow'),
+                "50_day_avg": info.get('fiftyDayAverage'),
+                "200_day_avg": info.get('twoHundredDayAverage'),
+                # Additional fundamental metrics
+                "ev_to_ebitda": info.get('enterpriseToEbitda'),
+                "price_to_sales": info.get('priceToSalesTrailing12Months'),
+                "gross_margin": info.get('grossMargins'),
+                "ebitda_margin": info.get('ebitdaMargins'),
+                "free_cash_flow": info.get('freeCashflow'),
+                "operating_cash_flow": info.get('operatingCashflow'),
+                "total_cash": info.get('totalCash'),
+                "total_debt": info.get('totalDebt'),
+                "enterprise_value": info.get('enterpriseValue'),
+                "roic": info.get('returnOnCapital'),
+                "asset_turnover": self._calculate_asset_turnover(info),
+                "interest_coverage": self._calculate_interest_coverage(info),
+            }
+            
+            # Log available metrics count
+            available = sum(1 for v in fundamentals.values() if v is not None)
+            print(f"📊 Fundamentals for {symbol}: {available}/{len(fundamentals)} metrics available")
+            
+            return fundamentals
+            
+        except Exception as e:
+            print(f"⚠️ Error fetching fundamentals for {symbol}: {str(e)}")
+            return {}
     
     def _calculate_asset_turnover(self, info: Dict) -> Optional[float]:
         """Calculate asset turnover ratio"""
