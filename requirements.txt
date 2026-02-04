@@ -9,14 +9,16 @@ python-dotenv>=1.0.0
 pydantic>=2.0.0
 
 # LangGraph (required for workflow)
-langgraph>=0.0.20
-langchain>=0.1.0
-langchain-openai>=0.0.2
+langgraph
+langchain
+langchain-core
+langchain-community
+langchain-openai
 
-# ML/AI (lighter alternatives)
-transformers>=4.36.0
-torch>=2.0.0
-sentence-transformers>=2.2.2
+# ML/AI
+transformers
+torch
+sentence-transformers
 
 # Technical Analysis
 ta>=0.11.0
