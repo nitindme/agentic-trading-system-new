@@ -5,8 +5,6 @@ Real-time multi-agent analysis with interactive charts
 
 import streamlit as st
 import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
 import pandas as pd
 import sys
 from pathlib import Path
@@ -131,12 +129,11 @@ def render():
         st.markdown("---")
         
         # Tabs for detailed analysis
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        tab1, tab2, tab3, tab4 = st.tabs([
             "😊 Sentiment",
             "📈 Technical",
             "💰 Fundamental",
-            "🛡️ Risk",
-            "📊 Charts"
+            "🛡️ Risk"
         ])
         
         # SENTIMENT TAB
@@ -800,139 +797,6 @@ def render():
                     st.markdown(f"- {point}")
             else:
                 st.info(reasoning_risk)
-        
-        # CHARTS TAB
-        with tab5:
-            st.markdown("### 📊 Price & Volume Charts")
-            
-            with st.spinner("Loading historical data..."):
-                try:
-                    # Fetch historical data
-                    market_data = MarketDataProvider()
-                    
-                    # Get 6 months of data
-                    end_date = datetime.now()
-                    start_date = end_date - timedelta(days=180)
-                    
-                    hist_data = market_data.data_source.history(
-                        period="6mo",
-                        interval="1d"
-                    )
-                    
-                    if hist_data is not None and not hist_data.empty:
-                        # Price chart with moving averages
-                        fig = make_subplots(
-                            rows=2, cols=1,
-                            shared_xaxes=True,
-                            vertical_spacing=0.05,
-                            row_heights=[0.7, 0.3],
-                            subplot_titles=(f'{symbol} Price & Moving Averages', 'Volume')
-                        )
-                        
-                        # Candlestick
-                        fig.add_trace(
-                            go.Candlestick(
-                                x=hist_data.index,
-                                open=hist_data['Open'],
-                                high=hist_data['High'],
-                                low=hist_data['Low'],
-                                close=hist_data['Close'],
-                                name='Price'
-                            ),
-                            row=1, col=1
-                        )
-                        
-                        # Moving averages
-                        if len(hist_data) >= 50:
-                            ma_50 = hist_data['Close'].rolling(window=50).mean()
-                            fig.add_trace(
-                                go.Scatter(
-                                    x=hist_data.index,
-                                    y=ma_50,
-                                    name='SMA 50',
-                                    line=dict(color='orange', width=2)
-                                ),
-                                row=1, col=1
-                            )
-                        
-                        if len(hist_data) >= 200:
-                            ma_200 = hist_data['Close'].rolling(window=200).mean()
-                            fig.add_trace(
-                                go.Scatter(
-                                    x=hist_data.index,
-                                    y=ma_200,
-                                    name='SMA 200',
-                                    line=dict(color='blue', width=2)
-                                ),
-                                row=1, col=1
-                            )
-                        
-                        # Volume
-                        colors = ['red' if row['Open'] > row['Close'] else 'green' 
-                                 for idx, row in hist_data.iterrows()]
-                        
-                        fig.add_trace(
-                            go.Bar(
-                                x=hist_data.index,
-                                y=hist_data['Volume'],
-                                name='Volume',
-                                marker_color=colors
-                            ),
-                            row=2, col=1
-                        )
-                        
-                        fig.update_layout(
-                            height=600,
-                            xaxis_rangeslider_visible=False,
-                            showlegend=True
-                        )
-                        
-                        fig.update_xaxes(title_text="Date", row=2, col=1)
-                        fig.update_yaxes(title_text="Price ($)", row=1, col=1)
-                        fig.update_yaxes(title_text="Volume", row=2, col=1)
-                        
-                        st.plotly_chart(fig, use_container_width=True)
-                        
-                        # RSI chart
-                        st.markdown("### 📈 RSI Indicator")
-                        
-                        # Calculate RSI
-                        delta = hist_data['Close'].diff()
-                        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-                        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-                        rs = gain / loss
-                        rsi = 100 - (100 / (1 + rs))
-                        
-                        fig_rsi = go.Figure()
-                        
-                        fig_rsi.add_trace(go.Scatter(
-                            x=hist_data.index,
-                            y=rsi,
-                            name='RSI',
-                            line=dict(color='purple', width=2)
-                        ))
-                        
-                        # Add overbought/oversold lines
-                        fig_rsi.add_hline(y=70, line_dash="dash", line_color="red", 
-                                         annotation_text="Overbought")
-                        fig_rsi.add_hline(y=30, line_dash="dash", line_color="green", 
-                                         annotation_text="Oversold")
-                        fig_rsi.add_hline(y=50, line_dash="dot", line_color="gray")
-                        
-                        fig_rsi.update_layout(
-                            height=300,
-                            yaxis=dict(range=[0, 100]),
-                            xaxis_title="Date",
-                            yaxis_title="RSI"
-                        )
-                        
-                        st.plotly_chart(fig_rsi, use_container_width=True)
-                    
-                    else:
-                        st.warning("Could not load historical chart data")
-                
-                except Exception as e:
-                    st.error(f"Error loading charts: {str(e)}")
     
     else:
         # Placeholder when no analysis
