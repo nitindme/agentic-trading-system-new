@@ -69,7 +69,7 @@ st.sidebar.markdown("---")
 # Navigation
 page = st.sidebar.radio(
     "Navigate",
-    ["🏠 Home", "⚙️ Settings"],
+    ["🏠 Home", "📊 Stock Analysis", "⚙️ Settings"],
     label_visibility="collapsed"
 )
 
@@ -211,6 +211,10 @@ if page == "🏠 Home":
     st.success("✅ **Phase 2 Complete** - Multi-agent intelligence system live!")
     st.info("📈 **New Features** - Technical + Fundamental + Risk agents added")
     st.info("🔄 **LangGraph Integration** - Conditional routing workflow active")
+
+elif page == "📊 Stock Analysis":
+    from pages import analysis
+    analysis.render()
 
 elif page == "⚙️ Settings":
     st.markdown("## ⚙️ System Settings")
