@@ -212,8 +212,10 @@ class RiskAgent:
         """
         try:
             volatility = self.market_data.get_volatility(symbol, period="1mo")
-        except:
-            volatility = 0.5  # Conservative default if data unavailable
+            print(f"📊 Volatility check: {symbol} = {volatility:.2%}")
+        except Exception as e:
+            print(f"⚠️ Volatility check failed for {symbol}: {str(e)}")
+            volatility = 0.25  # Moderate default if data unavailable
         
         passes = volatility <= self.max_volatility
         
@@ -236,8 +238,19 @@ class RiskAgent:
         try:
             market_data = self.market_data.get_current_data(symbol)
             volume = market_data.volume
-        except:
-            volume = 0
+            print(f"📊 Liquidity check: {symbol} volume = {volume:,}")
+        except Exception as e:
+            print(f"⚠️ Liquidity check failed for {symbol}: {str(e)}")
+            # Try alternative method - get historical data
+            try:
+                hist = self.market_data.get_historical_data(symbol, period="5d")
+                if hist is not None and not hist.empty and 'Volume' in hist.columns:
+                    volume = int(hist['Volume'].iloc[-1])
+                    print(f"📊 Fallback volume from history: {volume:,}")
+                else:
+                    volume = 0
+            except:
+                volume = 0
         
         passes = volume >= self.min_volume
         
@@ -330,27 +343,39 @@ class RiskAgent:
         """
         confidences = []
         weights = []
+        agent_names = []
         
-        if sentiment:
+        if sentiment and hasattr(sentiment, 'confidence'):
             confidences.append(sentiment.confidence)
             weights.append(0.3)  # 30% weight
+            agent_names.append("Sentiment")
         
-        if technical:
+        if technical and hasattr(technical, 'confidence'):
             confidences.append(technical.confidence)
             weights.append(0.3)  # 30% weight
+            agent_names.append("Technical")
         
-        if fundamental:
+        if fundamental and hasattr(fundamental, 'confidence'):
             confidences.append(fundamental.confidence)
             weights.append(0.4)  # 40% weight (fundamental more important)
+            agent_names.append("Fundamental")
         
         if not confidences:
-            return 0.0
+            print("⚠️ No agent confidence scores available - defaulting to 0.5")
+            return 0.5  # Return moderate confidence instead of 0
         
-        # Weighted average
+        # Log which agents contributed
+        print(f"📊 Confidence from {len(confidences)} agents: {', '.join(agent_names)}")
+        for name, conf in zip(agent_names, confidences):
+            print(f"   - {name}: {conf:.1%}")
+        
+        # Weighted average (renormalize weights if some agents missing)
         total_weight = sum(weights)
         weighted_conf = sum(c * w for c, w in zip(confidences, weights))
+        final_conf = weighted_conf / total_weight
         
-        return weighted_conf / total_weight
+        print(f"📊 Overall confidence: {final_conf:.1%}")
+        return final_conf
     
     def _determine_risk_level(
         self,

@@ -65,6 +65,13 @@ def render():
         result = st.session_state['analysis_result']
         symbol = st.session_state['analysis_symbol']
         
+        # Display any errors that occurred during analysis
+        errors = result.get('errors', [])
+        if errors:
+            with st.expander("⚠️ Analysis Warnings/Errors", expanded=False):
+                for err in errors:
+                    st.warning(err)
+        
         # Summary header
         st.markdown(f"### 📈 Analysis Results: {symbol}")
         
